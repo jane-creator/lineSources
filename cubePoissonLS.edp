@@ -1,0 +1,66 @@
+// 3D poisson cube with line source.
+// boundary condition is imposed with a periodic bc on z = 0, 1 and exact solution along other faces
+// an actual line delta regularisation is tested
+// Run in terminal with FreeFEM++ cubePoissonLS.edp
+
+
+load "msh3" // to use cube
+load "tetgen" // to make a cylinder (needed for buildlayers)
+load "MUMPS" //
+load "UMFPACK64"
+
+// // Macro
+macro grad(A) [dx(A), dy(A), dz(A)] // // replace macro(A) with following script code
+macro rho sqrt((x - 0.5)^2 + (y - 0.5)^2) // //
+
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// CHANGE ME TO RUN CODE WITH DIFFERENT REGULARISATIONS!!!!!!!!!!!!!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// {
+  int c = 4; // support coefficient
+
+  // // fix the support of the regularisation and the grid size
+  int n = 80;
+  real gridh = 1./n;
+
+  // // build delta string where the first and last pearl are flush with the boundary
+  real H = gridh*c, Hmax = 32*gridh, Hmin = 4*gridh; // support of regularisation
+
+  cout << "support is fixed at H = " << H << ", grid size is h = " << gridh << endl;
+
+  // different options of delta regularisations
+  //
+  // // QUADRATIC - eta(2,2)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  func deltaReg = (1./(pi*H^2))*(30.*(rho/H)^2 - 48.*(rho/H) + 18)*(rho - H < 1e-10 );
+// //}
+
+func ubc = (-1./(2.*pi))*log(max(Hmin,rho)); // do not want to place vertex on a pole
+
+mesh3 Th=readmesh3("unstrucMeshFine.mesh");
+
+// // fespace for solution
+fespace Vh(Th, P1); // periodic boundary conditions on z = 0, 1
+Vh u, deltaRegh = deltaReg;
+
+real interErrCheck = int3d(Th)(deltaRegh); // check for interpolation errors
+
+cout << "The integral of deltaH inside the cube = " << interErrCheck << endl;
+
+// // variational formulation
+varf vPoisson(u, v) // v test
+	= int3d(Th)(grad(u)' * grad(v)) + on(1,2,3,4,5,6, u = ubc);
+matrix<real> Poisson = vPoisson(Vh, Vh);
+
+// // solver for the linear system
+set(Poisson,solver="UMFPACK64");
+
+varf varb(u,v) = int3d(Th)(deltaReg*v) + on(1,2,3,4,5,6, u = ubc);
+real[int] rhs = varb(0, Vh); // v test
+
+// // solve
+u[] = Poisson^-1*rhs;
+
+// plot solution
+plot(u);
+
+cout << "END OF PROGRAM" << endl;
