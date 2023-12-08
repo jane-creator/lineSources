@@ -2,6 +2,7 @@
 // boundary condition is imposed with a periodic bc on z = 0, 1 and exact solution along other faces
 // an actual line delta regularisation is tested
 // Run in terminal with FreeFEM++ cubePoissonLS.edp
+// This code was written by Jane Shaw MacDonald at Simon Fraser University Fall 2023
 
 
 load "msh3" // to use cube
